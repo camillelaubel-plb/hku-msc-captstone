@@ -1,65 +1,108 @@
 import os
 import google.generativeai as genai
 import re
+import ast
 
-from flask import Flask, request
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
+# genai.configure(api_key="AIzaSyCQiW8uyewgcfxWfc-jROWUOaieo0tLYg0")
+genai.configure(api_key="AIzaSyAlTJ-DvCbbUZEPUn45UjKSK1nnY0JCksc")
+
+generation_config = {
+    "temperature": 1,
+    "top_p": 0.95,
+    "top_k": 0,
+    "max_output_tokens": 8192,
+}
+
+safety_settings = [
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+]
+
+model = genai.GenerativeModel(
+    model_name="gemini-1.5-pro-latest",
+    generation_config=generation_config,
+    safety_settings=safety_settings
+)
 
 @app.route("/ask-ai", methods=["POST"])
 def ask_ai():
-    genai.configure(api_key="AIzaSyCQiW8uyewgcfxWfc-jROWUOaieo0tLYg0")
+    try:
+        # Extract and validate input
+        data = request.json
+        code = data.get("code")
+        input_data = data.get("data", {})
+        input_type = input_data.get("inputType")
+        boundary = input_data.get("boundary")
+        result = data.get("result", {})
+        expected_output = result.get("expectedOutput")
 
-    generation_config = {
-        "temperature": 1,
-        "top_p": 0.95,
-        "top_k": 0,
-        "max_output_tokens": 8192,
-    }
+        if not code or not input_type or not boundary or not expected_output:
+            raise ValueError("Missing required fields in the input.")
+        
+        # Validate Python syntax
+        chat = model.start_chat(history=[])
+        syntax_check = chat.send_message(f"Ignore indentation errors and respond with 'Yes' or 'No'. Is this correct Python syntax?\n`{code}`")
+        print(syntax_check.text)
+        
+        if "No" in syntax_check.text:
+            syntax_errors = chat.send_message(f"List the syntax errors in bullet points:\n{code}")
+            raise SyntaxError("Invalid Python syntax:", syntax_errors.text)
+        
+        # Generate sample data
+        sample_data_query = (
+            f"Your responses will be used within a python program. You should adapt them so that it can be read by the flask jsonify function.\n"  
+            f"Generate relevant testing data for the Python code:\n`{code}`\n"
+            f"The input data type should be {input_type} and the boundary should be {boundary}."
+            f"Your response should only be a python list of numbered list with the generated data."
+        )
+        sample_data_response = chat.send_message(sample_data_query)
+        sample_data = eval(sample_data_response.text.replace('`', '').replace('python', ''))
+        # Edge Case Handling: Generate edge cases for testing, not just typical data.
+        # Randomized Data: Use libraries like faker to generate realistic and varied sample data.
+        # Custom Data Patterns: Allow users to specify patterns for input data generation
 
-    safety_settings = [
-        {
-            "category": "HARM_CATEGORY_HARASSMENT",
-            "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-        },
-        {
-            "category": "HARM_CATEGORY_HATE_SPEECH",
-            "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-        },
-        {
-            "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-        },
-        {
-            "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-            "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-        },
-    ]
+        # Validate the output
+        validation_query = (
+            f"Run the generated testing data on the code:\n{code}\n"
+            f"Are the results as expected? The expected output is {expected_output}."
+        )
+        validation_response = chat.send_message(validation_query)
+        validation_result = validation_response.text
 
-    model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest", generation_config=generation_config, safety_settings=safety_settings)
+        # Generate unit tests
+        unit_test_query = f"Generate ready-to-run Python unit tests for the provided code, including comments and descriptions:\n{code}"
+        unit_test_response = chat.send_message(unit_test_query)
+        unit_tests = unit_test_response.text
+
+        # Parameterized Tests: Create parameterized unit tests to handle multiple input scenarios efficiently.
+        # Mocking and Patching: Include examples of using unittest.mock to handle external dependencies.
+        # Test Coverage: Analyze test coverage and suggest additional test cases to improve it.
+
+        response = {
+            "sample_data": sample_data,
+            "validation_result": validation_result,
+            "unit_tests": unit_tests,
+            "metrics": [],  # Metrics can be added here
+            "suggestions": [],  # Suggestions can be added here
+        }
+
+        return jsonify(response)
+
+
+    except ValueError as e:
+        return jsonify({"error": "Invalid input.", "details": str(e)}), 400
     
-    code = request.json["code"]
-    inputType = request.json["data"]["inputType"]
-    boundary = request.json["data"]["boundary"]
-    expectedOutput = request.json["data"]["expectedOutput"]
+    except SyntaxError as e:
+        return jsonify({"error": "Invalid code syntax.", "details": str(e)}), 400
     
-    chat = model.start_chat(history=[])
-    response1 = chat.send_message("With a 'Yes' or 'No', is this python code?:" + code)
-    if response1.text == "No":
-        return "The code provided is not a python code."
-    
-    response2 = chat.send_message("With a 'Yes' or 'No', is this correct python syntax and can it be run?" + code)
-    if response2.text == "No":
-        response2_1 = chat.send_message("Highlight what is wrong with the code")
-        return f"The code provided is not a correct python syntax. Here are the errors: {response2_1.text}"
-
-    response3 = chat.send_message("Generate a ready to run python unit test for the provided code (with comments and description):")
-    response4 = chat.send_message("Create relevant testing data for the python code")
-
-    answer = f"{response3.text}"
-    return answer
-
-
+    except Exception as e:
+        return jsonify({"error": "An unexpected error occurred.", "details": str(e)}), 500
+       
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
