@@ -33,7 +33,8 @@ def ask_ai():
         
         if "No" in syntax_check.text:
             syntax_errors = chat.send_message(f"List the syntax errors in bullet points:\n{code}")
-            raise SyntaxError("Invalid Python syntax:", syntax_errors.text)
+            print(syntax_errors.text)
+            raise ValueError("Invalid Python syntax:", syntax_errors.text)
         
         # Generate sample data
         sample_data_query = (
@@ -44,6 +45,8 @@ def ask_ai():
         )
         sample_data_response = chat.send_message(sample_data_query)
         sample_data = eval(sample_data_response.text.replace('`', '').replace('python', ''))
+        print(sample_data)
+
         # Edge Case Handling: Generate edge cases for testing, not just typical data.
         # Randomized Data: Use libraries like faker to generate realistic and varied sample data.
         # Custom Data Patterns: Allow users to specify patterns for input data generation
@@ -56,11 +59,13 @@ def ask_ai():
         )
         validation_response = chat.send_message(validation_query)
         validation_result = validation_response.text
+        print(validation_result)
 
         # Generate unit tests
         unit_test_query = f"Generate ready-to-run Python unit tests for the provided code, including comments and descriptions:\n{code}"
         unit_test_response = chat.send_message(unit_test_query)
         unit_tests = unit_test_response.text
+        print(unit_tests)
 
         # Parameterized Tests: Create parameterized unit tests to handle multiple input scenarios efficiently.
         # Mocking and Patching: Include examples of using unittest.mock to handle external dependencies.
@@ -79,10 +84,7 @@ def ask_ai():
 
     except ValueError as e:
         return jsonify({"error": "Invalid input.", "details": str(e)}), 400
-    
-    except SyntaxError as e:
-        return jsonify({"error": "Invalid code syntax.", "details": str(e)}), 400
-    
+
     except Exception as e:
         return jsonify({"error": "An unexpected error occurred.", "details": str(e)}), 500
        
