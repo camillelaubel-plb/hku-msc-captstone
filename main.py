@@ -21,16 +21,13 @@ def ask_ai():
 
         # if not api_key or not code or not input_type or not boundary or not expected_output:
             # raise ValueError("Missing required fields in the input.")
-        
-        model = configure_model(api_key)
 
         # Validate Python syntax
-        chat = model.start_chat(history=[])
-        syntax_check = chat.send_message(f"Ignore indentation errors and respond with 'Yes' or 'No'. Is this correct Python syntax?\n`{code}`")
+        syntax_check = callGeminiLLM(api_key, f"Ignore indentation errors and respond with 'Yes' or 'No'. Is this correct Python syntax?\n`{code}`")
         print(syntax_check.text)
         
         if "No" in syntax_check.text:
-            syntax_errors = chat.send_message(f"List the syntax errors in bullet points:\n{code}")
+            syntax_errors = callGeminiLLM(api_key, f"List the syntax errors in bullet points:\n{code}")
             raise SyntaxError("Invalid Python syntax:", syntax_errors.text)
         
         # Generate sample data
@@ -40,7 +37,7 @@ def ask_ai():
             f"The input data type should be {input_type} and the boundary should be {boundary}."
             f"Your response should only be a python list (minimum 20 items) of numbered list with the generated data."
         )
-        sample_data_response = chat.send_message(sample_data_query)
+        sample_data_response = callGeminiLLM(api_key, sample_data_query)
         sample_data = eval(sample_data_response.text.replace('`', '').replace('python', ''))
         # Edge Case Handling: Generate edge cases for testing, not just typical data.
         # Randomized Data: Use libraries like faker to generate realistic and varied sample data.
@@ -52,22 +49,19 @@ def ask_ai():
             f"Are the results as expected? The expected output is {expected_output}."
             f"Display your response as text"
         )
-        validation_response = chat.send_message(validation_query)
+
+        validation_response = callGeminiLLM(api_key, validation_query)
         validation_result = validation_response.text
 
         # Generate unit tests
         # unit_test_query = f"Generate ready-to-run Python unit tests for the provided code, including comments and descriptions:\n{code}" # with comment
         unit_test_query = f"Generate ready-to-run Python unit tests for the provided code, without comments and descriptions:\n{code}" # without comment
-        unit_test_response = chat.send_message(unit_test_query)
+        unit_test_response = callGeminiLLM(api_key, unit_test_query)
         unit_tests =  unit_test_response.text
 
         # Generated test handling, disable when generating unit tests with comment and description
-        unit_tests = unit_tests.replace("\\n", "")
-        unit_tests = unit_tests.replace("\n", " ")
-        unit_tests = unit_tests.replace("```python", " ")
-        unit_tests = unit_tests.replace("```", " ")
-
-        # eval(unit_tests)
+        # Removing "``` python" "\\n" etc. human readable description
+        unit_tests = massageOutput(unit_tests)
 
         # Parameterized Tests: Create parameterized unit tests to handle multiple input scenarios efficiently.
         # Mocking and Patching: Include examples of using unittest.mock to handle external dependencies.
@@ -92,6 +86,21 @@ def ask_ai():
     
     except Exception as e:
         return jsonify({"error": "An unexpected error occurred.", "details": str(e)}), 500
+
+def massageOutput(input: str):
+    input = input.replace("\\n", "")
+    input = input.replace("\n", " ")
+    input = input.replace("```python", " ")
+    input = input.replace("```", " ")
+
+    return input
+
+# Gemini LLM call
+def callGeminiLLM(apiKey: str, input: str):
+    model = configure_model(apiKey)
+    chat = model.start_chat(history=[])
+
+    return chat.send_message(input)
        
 def configure_model(api_key: str):
     genai.configure(api_key=api_key)
