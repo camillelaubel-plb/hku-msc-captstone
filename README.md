@@ -8,14 +8,22 @@ Proton VPN (Free) or any other VPN will do the work
 
 After connected to the VPN, then able to execute blocks of the Jupyter notebook
 
-##### Local Testing
+### Local Testing
+#### Install libraries needed 
+Run: `pip install -r requirements.txt` at project root directory
+
+#### Start the application
 Run: `flask --app main --debug run`
 
-##### Deploy to cloud host
+#### Test on coverage and generate coverage report
+Replace your input code into .\testing\mainLogic.py and refactor input package name at .\testing\testing.py
+Run: `coverage run -m unittest testing.py` then `coverage report`
+
+### Deploy to cloud host
 Run: `gcloud run deploy test-generation --image asia-east1-docker.pkg.dev/msc-capstone-2024/cloud-run-source-deploy/test-generation`
 Pick Region 2: asia-east1
 
-##### Sample JSON input to the API
+### Sample JSON input to the API
 `{
     "apiKey": "AIzaSyAjfxkxDpd4fo0wVm_pbS1uVJhGOVVNafI",
     "code": "def twoSum(num1, num2): sum_result = num1 + num2 return sum_result",
@@ -28,7 +36,7 @@ Pick Region 2: asia-east1
     }
 }`
 
-##### Sample JSON output from the API
+### Sample JSON output from the API
 `{
 	"metrics": [],
 	"sample_data": [
