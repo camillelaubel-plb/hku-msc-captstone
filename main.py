@@ -18,16 +18,19 @@ def ask_ai():
         result = data.get("result", {})
         expected_output = result.get("expectedOutput")
 
+        model = configure_model(api_key)
+        chat = model.start_chat(history=[])
 
-        # if not api_key or not code or not input_type or not boundary or not expected_output:
-            # raise ValueError("Missing required fields in the input.")
+
+        if not api_key or not code or not input_type or not boundary or not expected_output:
+            raise ValueError("Missing required fields in the input.")
 
         # Validate Python syntax
-        syntax_check = callGeminiLLM(api_key, f"Ignore indentation errors and respond with 'Yes' or 'No'. Is this correct Python syntax?\n`{code}`")
+        syntax_check = chat.send_message(f"Ignore indentation errors and respond with 'Yes' or 'No'. Is this correct Python syntax?\n`{code}`")
         print(syntax_check.text)
         
         if "No" in syntax_check.text:
-            syntax_errors = callGeminiLLM(api_key, f"List the syntax errors in bullet points:\n{code}")
+            syntax_errors = chat.send_message(f"List the syntax errors in bullet points:\n{code}")
             print(syntax_errors.text)
             raise ValueError("Invalid Python syntax:", syntax_errors.text)
         
@@ -38,7 +41,7 @@ def ask_ai():
             f"The input data type should be {input_type} and the boundary should be {boundary}."
             f"Your response should only be a python list (minimum 20 items) of numbered list with the generated data."
         )
-        sample_data_response = callGeminiLLM(api_key, sample_data_query)
+        sample_data_response = chat.send_message(sample_data_query)
         sample_data = eval(sample_data_response.text.replace('`', '').replace('python', ''))
         print(sample_data)
 
@@ -53,14 +56,14 @@ def ask_ai():
             f"Display your response as text"
         )
 
-        validation_response = callGeminiLLM(api_key, validation_query)
+        validation_response = chat.send_message(validation_query)
         validation_result = validation_response.text
         print(validation_result)
 
         # Generate unit tests
         # unit_test_query = f"Generate ready-to-run Python unit tests for the provided code, including comments and descriptions:\n{code}" # with comment
         unit_test_query = f"Generate ready-to-run Python unit tests for the provided code, without comments and descriptions:\n{code}" # without comment
-        unit_test_response = callGeminiLLM(api_key, unit_test_query)
+        unit_test_response = chat.send_message(unit_test_query)
         unit_tests =  unit_test_response.text
 
         # Generated test handling, disable when generating unit tests with comment and description
