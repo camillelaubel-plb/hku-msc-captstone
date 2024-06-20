@@ -1,7 +1,5 @@
 import os
 import google.generativeai as genai
-import re
-import ast
 
 from flask import Flask, request, jsonify
 
@@ -21,8 +19,8 @@ def ask_ai():
         expected_output = result.get("expectedOutput")
 
 
-        if not api_key or not code or not input_type or not boundary or not expected_output:
-            raise ValueError("Missing required fields in the input.")
+        # if not api_key or not code or not input_type or not boundary or not expected_output:
+            # raise ValueError("Missing required fields in the input.")
         
         model = configure_model(api_key)
 
@@ -58,9 +56,18 @@ def ask_ai():
         validation_result = validation_response.text
 
         # Generate unit tests
-        unit_test_query = f"Generate ready-to-run Python unit tests for the provided code, including comments and descriptions:\n{code}"
+        # unit_test_query = f"Generate ready-to-run Python unit tests for the provided code, including comments and descriptions:\n{code}" # with comment
+        unit_test_query = f"Generate ready-to-run Python unit tests for the provided code, without comments and descriptions:\n{code}" # without comment
         unit_test_response = chat.send_message(unit_test_query)
-        unit_tests = unit_test_response.text
+        unit_tests =  unit_test_response.text
+
+        # Generated test handling, disable when generating unit tests with comment and description
+        unit_tests = unit_tests.replace("\\n", "")
+        unit_tests = unit_tests.replace("\n", " ")
+        unit_tests = unit_tests.replace("```python", " ")
+        unit_tests = unit_tests.replace("```", " ")
+
+        # eval(unit_tests)
 
         # Parameterized Tests: Create parameterized unit tests to handle multiple input scenarios efficiently.
         # Mocking and Patching: Include examples of using unittest.mock to handle external dependencies.
@@ -104,7 +111,7 @@ def configure_model(api_key: str):
     ]
 
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-pro-latest",
+        model_name="gemini-1.5-flash",
         generation_config=generation_config,
         safety_settings=safety_settings
     )
