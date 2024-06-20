@@ -1,7 +1,5 @@
 import unittest
-
-def add_numbers(a, b):
-    return a + b
+from mainLogic import add_numbers
 
 class TestAddNumbers(unittest.TestCase):
     def test_positive_numbers(self):
