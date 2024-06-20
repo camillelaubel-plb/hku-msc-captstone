@@ -17,6 +17,7 @@ Run: `flask --app main --debug run`
 
 #### Test on coverage and generate coverage report
 Replace your input code into .\testing\mainLogic.py and refactor input package name at .\testing\testing.py
+
 Run: `coverage run -m unittest testing.py` then `coverage report`
 
 ### Deploy to cloud host
