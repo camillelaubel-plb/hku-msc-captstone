@@ -25,7 +25,8 @@ Run: `gcloud run deploy test-generation --image asia-east1-docker.pkg.dev/msc-ca
 Pick Region 2: asia-east1
 
 ### Sample JSON input to the API
-`{
+```JSON
+{
     "apiKey": "AIzaSyAjfxkxDpd4fo0wVm_pbS1uVJhGOVVNafI",
     "code": "def twoSum(num1, num2): sum_result = num1 + num2 return sum_result",
     "data": {
@@ -35,10 +36,12 @@ Pick Region 2: asia-east1
     "result": {
         "expectedOutput": "single positive number"
     }
-}`
+}
+```
 
 ### Sample JSON output from the API
-`{
+``` JSON
+{
 	"metrics": [],
 	"sample_data": [
 		{
@@ -127,4 +130,5 @@ Pick Region 2: asia-east1
 	],
 	"unit_tests": "  import unittest  class TestTwoSum(unittest.TestCase):     def test_two_sum_positive(self):         self.assertEqual(twoSum(1, 2), 3)     def test_two_sum_zero(self):         self.assertEqual(twoSum(0, 5), 5)     def test_two_sum_negative(self):         self.assertEqual(twoSum(-1, 2), 1)     def test_two_sum_large_numbers(self):         self.assertEqual(twoSum(1000, 2000), 3000)  if __name__ == '__main__':     unittest.main()  ",
 	"validation_result": "Yes, the results are as expected. For each test case, the code correctly calculates the sum of the two input numbers, resulting in a single positive number. \n"
-}`
+}
+```
