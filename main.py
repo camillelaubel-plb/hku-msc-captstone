@@ -76,12 +76,16 @@ def ask_ai():
         # Mocking and Patching: Include examples of using unittest.mock to handle external dependencies.
         # Test Coverage: Analyze test coverage and suggest additional test cases to improve it.
 
+        ## Suggenstions
+        ## 2nd LLM call to evaluate the code and unit tests
+        suggestions = callGeminiLLMForEvaluation(api_key, code, unit_tests)
+
         response = {
             "sample_data": sample_data,
             "validation_result": validation_result,
             "unit_tests": unit_tests,
             "metrics": [],  # Metrics can be added here
-            "suggestions": [],  # Suggestions can be added here
+            "suggestions": suggestions,  # Suggestions can be added here
         }
 
         return jsonify(response)
@@ -102,12 +106,14 @@ def massageOutput(input: str):
     return input
 
 # Gemini LLM call
-def callGeminiLLM(apiKey: str, input: str):
+def callGeminiLLMForEvaluation(apiKey: str, inputCode: str, unitTest: str):
     model = configure_model(apiKey)
-    chat = model.start_chat(history=[])
+    chat = model.start_chat()
 
-    return chat.send_message(input)
-       
+    prompt = f"Evaluate the following Python code and unit test in short sentences (with code coverage metrics):\n{inputCode}\n{unitTest}"
+
+    return chat.send_message(prompt).text
+
 def configure_model(api_key: str):
     genai.configure(api_key=api_key)
 
