@@ -26,7 +26,7 @@ def ask_ai():
             raise ValueError("Missing required fields in the input.")
 
         # Validate Python syntax
-        syntax_check = chat.send_message(f"Ignore indentation errors and respond with 'Yes' or 'No'. Is this correct Python syntax?\n`{code}`")
+        syntax_check = chat.send_message(f"Ignore indentation errors and missing imports and respond with 'Yes' or 'No'. Is this correct Python syntax?\n`{code}`")
         print(syntax_check.text)
         
         if "No" in syntax_check.text:
