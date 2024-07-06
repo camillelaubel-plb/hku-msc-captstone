@@ -3,3 +3,4 @@ gunicorn==22.0.0
 Werkzeug==3.0.3
 google-generativeai==0.5.4
 coverage==7.5.3
+memory_profiler==0.58.0
