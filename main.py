@@ -4,6 +4,8 @@ import time
 # import memory_profiler
 import numpy as np
 import google.generativeai as genai
+import textwrap
+import ast
 
 from flask import Flask, request, jsonify
 
@@ -12,6 +14,7 @@ app = Flask(__name__)
 @app.route("/ask-ai", methods=["POST"])
 def ask_ai():
     try:
+        print(" #### 1")
         # Extract and validate input
         data = request.json
         api_key = data.get("apiKey")
@@ -78,19 +81,30 @@ def ask_ai():
 
         # Generate unit tests
         unit_test_query = (
-            f"2. Your task is to Generate 10 ready-to-run Python unit tests for the provided code, without comments and descriptions:\n{python_code}\n"
-            f"1. The test would be using assertNotEqual instead of assertEqual for the all of the test cases."
-            f"4. Make sure the comparison between expected and actual output is done using same data types."
-            f"3. Before each variation, I want you to think through what a good header would be and elaborate on your reasoning before you write out the unit test."
-            f"5. Generate the test as mentioned above."
+            f"1. The test would be using python native number comparison methods for the all of the test cases."
+            f"2. Your task is to Generate 5 ready-to-run Python unit tests for the provided code, without comments and descriptions:\n{python_code}\n"
+            f"3. Make sure the comparasion between expected and actual output is done using same data types."
+            f"4. Then generate the unit test as above mentioned without comments and description and ready-to-run."
+            f"5. Remove any explanation, comments, descriptions except python code."
+            f"6. Include the unittest.main() command at the end of the unit test."
             )
         
         unit_test_response = chat.send_message(unit_test_query)
-        unit_tests =  unit_test_response.text
+        # unit_tests =  unit_test_response.text
 
         # Generated test handling, disable when generating unit tests with comment and description
         # Removing "``` python" "\\n" etc. human readable description
-        unit_tests = massageOutput(unit_tests)
+        # unit_tests = massageOutput(unit_tests)
+        print(" #### 2")
+        unit_test_response = unit_test_response.text.partition("```python")[2].partition("```")[0]
+        unit_test = run_external_code_unit_test(unit_test_response)
+        print(" #### test4")
+
+        # unit_tests = wrap_and_indent_code(unit_tests, width=80, indent='    ')
+
+        # Evaluate the generated unit tests
+        eval(unit_test)
+        print(" #### test5")
 
         # Generate metrics
         ## Execution time
@@ -142,7 +156,7 @@ def ask_ai():
         response = {
             "sample_data": sample_data,
             "validation_result": validation_result,
-            "unit_tests": unit_tests,
+            "unit_tests": unit_test,
             "metrics": {
                 "execution_time": execution_time
             },
@@ -158,6 +172,32 @@ def ask_ai():
     except Exception as e:
         return jsonify({"error": "An unexpected error occurred.", "details": str(e)}), 500
 
+def run_external_code_unit_test(string_code):
+    function_name = extract_function_name(string_code)
+    print("#### extract_function_name")
+
+    if function_name is None:
+        raise ValueError("Missing function name. i.e. def my_function(data):")
+    
+    # Execute the function definition
+    exec(string_code)
+    print("#### exec(string_code)")
+        
+    # Convert the code string into an AST object
+    code_ast = ast.parse(string_code)
+    print("#### ast.parse(string_code)")
+
+    # Convert the FunctionDef object into a string representation
+    code_str = ast.unparse(code_ast.body[0])
+    print("#### ast.unparse(code_ast.body[0])")
+
+    result = ast.literal_eval(code_str)
+    print("#### ast.literal_eval(code_str)")
+    
+    output = {}
+    output["results"] = result
+    return output
+
 def massageOutput(input: str):
     input = input.replace("\\n", "")
     input = input.replace("\n", " ")
@@ -167,11 +207,26 @@ def massageOutput(input: str):
     return input
 
 def extract_function_name(code):
+    print(code)
     function_name_match = re.search(r'def\s+(\w+)\s*\(', code)
     if function_name_match:
         return function_name_match.group(1)
     else:
         return None
+    
+def wrap_and_indent_code(code_str, width=80, indent='    '):
+    lines = code_str.split('\n')
+    wrapped_lines = []
+
+    for line in lines:
+        if line.strip() == '':
+            wrapped_lines.append(line)
+            continue
+
+        wrapped = textwrap.fill(line, width=width, subsequent_indent=indent)
+        wrapped_lines.append(wrapped)
+
+    return '\n'.join(wrapped_lines)
     
 def run_external_code(string_code, data):
     function_name = extract_function_name(string_code)
