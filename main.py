@@ -62,7 +62,16 @@ def ask_ai():
 
         # Generate unit tests
         # unit_test_query = f"Generate ready-to-run Python unit tests for the provided code, including comments and descriptions:\n{code}" # with comment
-        unit_test_query = f"Generate ready-to-run Python unit tests for the provided code, without comments and descriptions:\n{code}" # without comment
+        # unit_test_query = f"Generate ready-to-run Python unit tests for the provided code, without comments and descriptions:\n{code}" # without comment
+        unit_test_query = (
+            f"1. Before each variation, I want you to think through what a good header would be and elaborate on your reasoning before you write out the unit test."
+            f"2. The test would be using assertNotEqual instead of assertEqual for the all of the test cases."
+            f"3. Your task is to Generate 10 ready-to-run Python unit tests for the provided code, without comments and descriptions:\n{code}\n"
+            f"4. Before each variation, I want you to think through what a good header would be and elaborate on your reasoning before you write out the unit test."
+            f"5. Make sure the comparasion between expected and actual output is done using same data types."
+            f"5. Then generate the test as above mentioned."
+            )
+        
         unit_test_response = chat.send_message(unit_test_query)
         unit_tests =  unit_test_response.text
 
