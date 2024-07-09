@@ -64,6 +64,7 @@ def ask_ai():
         # Validate the output
         validation_result = ""
         execution_time = 0
+        memory_usage = 0
         if (len(sample_data) > 0):
             output = test_main_function(code, sample_data)
             result = output["results"]
@@ -74,6 +75,7 @@ def ask_ai():
             )
 
             execution_time = output["execution_time"]
+            # memory_usage = output["memory_usage"]
 
             try:
                 validation_response = chat.send_message(validation_query)
@@ -97,23 +99,10 @@ def ask_ai():
         passed_tests, failed_tests = run_tests(unit_test_response)
         # coverage = run_tests_and_get_coverage(unit_test_response)
 
-        # Generate metrics
-        ## Memory usage
-        # memory_usage = memory_profiler.memory_usage()[0]
-
-
-        # Generate code quality metrics, such as cyclomatic complexity and maintainability index.
-        # Analyze the code for potential security vulnerabilities and suggest improvements.
-        # Evaluate the code for performance bottlenecks and suggest optimizations.
-
-
         # Generate suggestions
-
-
-        ## Sebastian
-        ### 1. Implement the rest of the metrics generation
-        ### 2. Implement the suggestions generation
-
+        ## Evaluate the code for performance bottlenecks and suggest optimizations.
+        ## Evaluate the code for potential security vulnerabilities and suggest improvements.
+        ## Evaluate the code for potential bugs and suggest fixes.
 
         response = {
             "sample_data": sample_data,
@@ -125,7 +114,7 @@ def ask_ai():
             "metrics": {
                 "execution_time": execution_time,
                 "coverage": 0,
-                "memory_usage": 0
+                "memory_usage": memory_usage
             },
             "suggestions": []
         }
@@ -148,6 +137,7 @@ def extract_function_name(code):
 
 def test_main_function(string_code, data):
     start_time = time.time()
+    # memory_usage = memory_profiler.memory_usage()[0]
     result = run_external_code(string_code, data)
     end_time = time.time()
     execution_time = end_time - start_time
@@ -155,6 +145,7 @@ def test_main_function(string_code, data):
     output = {}
     output["results"] = result
     output["execution_time"] = execution_time
+    # output["memory_usage"] = memory_usage
     return output
 
     
