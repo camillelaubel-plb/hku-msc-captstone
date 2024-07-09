@@ -6,6 +6,9 @@ import numpy as np
 import google.generativeai as genai
 import textwrap
 import ast
+import unittest
+import io
+import sys
 
 from flask import Flask, request, jsonify
 
@@ -14,7 +17,6 @@ app = Flask(__name__)
 @app.route("/ask-ai", methods=["POST"])
 def ask_ai():
     try:
-        print(" #### 1")
         # Extract and validate input
         data = request.json
         api_key = data.get("apiKey")
@@ -43,7 +45,7 @@ def ask_ai():
         if "No" in syntax_check.text:
             syntax_errors = chat.send_message("List the previous syntax errors in bullet points")
             raise ValueError("Invalid Python syntax:", syntax_errors.text)
-        
+            
         # Generate sample data
         sample_data_query = (
             f"Generate diverse testing input data for a Python program that utilizes Flask's jsonify function."
@@ -63,7 +65,7 @@ def ask_ai():
         validation_result = ""
         execution_time = 0
         if (len(sample_data) > 0):
-            output = run_external_code(code, sample_data)
+            output = test_main_function(code, sample_data)
             result = output["results"]
 
             validation_query = (
@@ -81,29 +83,21 @@ def ask_ai():
 
         # Generate unit tests
         unit_test_query = (
-            f"1. The test would be using python native number comparison methods for the all of the test cases."
-            f"2. Your task is to Generate 5 ready-to-run Python unit tests for the provided code, without comments and descriptions:\n{python_code}\n"
-            f"3. Make sure the comparasion between expected and actual output is done using same data types."
-            f"4. Then generate the unit test as above mentioned without comments and description and ready-to-run."
-            f"5. Remove any explanation, comments, descriptions except python code."
-            f"6. Include the unittest.main() command at the end of the unit test."
-            )
+            f"Generate 5 correct and ready-to-run Python unit tests following the unittest framework for the provided code, without comments and descriptions:\n{python_code}\n"
+            f"Make sure the generated test use the same data types as the expected output."
+            f"Include the unittest.main() command at the end of the unit test."
+            f"Before each variation, I want you to think through if the expected output will match with actual output before you write out the unit test. Update the expected output if necessary."
+        )
         
         unit_test_response = chat.send_message(unit_test_query)
-        # unit_tests =  unit_test_response.text
 
-        # Generated test handling, disable when generating unit tests with comment and description
-        # Removing "``` python" "\\n" etc. human readable description
-        # unit_tests = massageOutput(unit_tests)
-        print(" #### 2")
         unit_test_response = unit_test_response.text.partition("```python")[2].partition("```")[0]
-        unit_test = run_external_code_unit_test(unit_test_response)
-        print(" #### test4")
-
-        # unit_tests = wrap_and_indent_code(unit_tests, width=80, indent='    ')
-
+        
         # Evaluate the generated unit tests
-        eval(unit_test)
+        passed_tests, failed_tests = run_tests(unit_test_response)
+
+
+        # eval(passed_tests)
         print(" #### test5")
 
         # Generate metrics
@@ -141,13 +135,6 @@ def ask_ai():
         # Generate suggestions
 
 
-        #TODO:
-        ## Billy
-        ### 1. Integrate the extracted function to run and validate each unit test
-        ### 2. extract the tests from llm output
-        ### 3. Most likely will need to reuse the string code extraction to run the unit tests
-        ### 4. Only output the passed unit tests
-
         ## Sebastian
         ### 1. Implement the rest of the metrics generation
         ### 2. Implement the suggestions generation
@@ -156,7 +143,10 @@ def ask_ai():
         response = {
             "sample_data": sample_data,
             "validation_result": validation_result,
-            "unit_tests": unit_test,
+            "unit_tests": {
+                "passed_tests": passed_tests,
+                "failed_tests": failed_tests
+            },
             "metrics": {
                 "execution_time": execution_time
             },
@@ -172,61 +162,24 @@ def ask_ai():
     except Exception as e:
         return jsonify({"error": "An unexpected error occurred.", "details": str(e)}), 500
 
-def run_external_code_unit_test(string_code):
-    function_name = extract_function_name(string_code)
-    print("#### extract_function_name")
-
-    if function_name is None:
-        raise ValueError("Missing function name. i.e. def my_function(data):")
-    
-    # Execute the function definition
-    exec(string_code)
-    print("#### exec(string_code)")
-        
-    # Convert the code string into an AST object
-    code_ast = ast.parse(string_code)
-    print("#### ast.parse(string_code)")
-
-    # Convert the FunctionDef object into a string representation
-    code_str = ast.unparse(code_ast.body[0])
-    print("#### ast.unparse(code_ast.body[0])")
-
-    result = ast.literal_eval(code_str)
-    print("#### ast.literal_eval(code_str)")
-    
-    output = {}
-    output["results"] = result
-    return output
-
-def massageOutput(input: str):
-    input = input.replace("\\n", "")
-    input = input.replace("\n", " ")
-    input = input.replace("```python", " ")
-    input = input.replace("```", " ")
-
-    return input
-
 def extract_function_name(code):
-    print(code)
     function_name_match = re.search(r'def\s+(\w+)\s*\(', code)
     if function_name_match:
         return function_name_match.group(1)
     else:
         return None
-    
-def wrap_and_indent_code(code_str, width=80, indent='    '):
-    lines = code_str.split('\n')
-    wrapped_lines = []
 
-    for line in lines:
-        if line.strip() == '':
-            wrapped_lines.append(line)
-            continue
+def test_main_function(string_code, data):
+    start_time = time.time()
+    end_time = time.time()
+    result = run_external_code(string_code, data)
+    execution_time = end_time - start_time
 
-        wrapped = textwrap.fill(line, width=width, subsequent_indent=indent)
-        wrapped_lines.append(wrapped)
+    output = {}
+    output["results"] = result
+    output["execution_time"] = execution_time
+    return output
 
-    return '\n'.join(wrapped_lines)
     
 def run_external_code(string_code, data):
     function_name = extract_function_name(string_code)
@@ -238,15 +191,75 @@ def run_external_code(string_code, data):
     exec(string_code)
         
     # Call the function dynamically
-    start_time = time.time()
     result = eval(f'{function_name}({data})')
-    end_time = time.time()
-    execution_time = end_time - start_time
 
-    output = {}
-    output["results"] = result
-    output["execution_time"] = execution_time
-    return output
+    return result
+
+class CustomTestResult(unittest.TextTestResult):
+    def __init__(self, stream, descriptions, verbosity):
+        super().__init__(stream, descriptions, verbosity)
+        self.passed = []
+        self.failed = []
+    
+    def addSuccess(self, test):
+        super().addSuccess(test)
+        self.passed.append(test)
+    
+    def addFailure(self, test, err):
+        super().addFailure(test, err)
+        self.failed.append(test)
+
+def get_test_code(test_case, unit_test_code):
+    # Extract the method name
+    method_name = test_case._testMethodName
+    # Find the method in the unit test code
+    lines = unit_test_code.strip().split('\n')
+    start_index = None
+    end_index = None
+
+    for i, line in enumerate(lines):
+        if line.strip().startswith(f'def {method_name}('):
+            start_index = i
+            break
+
+    if start_index is not None:
+        for i in range(start_index + 1, len(lines)):
+            if lines[i].strip().startswith('def ') or lines[i].strip().startswith('class ') or lines[i].strip().startswith('if __name__ =='):
+                end_index = i
+                break
+
+        if end_index is None:
+            end_index = len(lines)
+
+    if start_index is not None:
+        extracted_lines = lines[start_index:end_index]
+        # Left-strip only the first line
+        extracted_lines[0] = extracted_lines[0].lstrip()
+        return '\n'.join(extracted_lines)
+    
+    return None
+
+def run_tests(unit_test_code):
+    # Create a new module to hold the dynamically generated test cases
+    test_module = type(sys)('test_module')
+    exec(unit_test_code, test_module.__dict__)
+
+    # Redirect result to capture the test output
+    test_output = io.StringIO()
+    runner = unittest.TextTestRunner(stream=test_output, verbosity=2, resultclass=CustomTestResult)
+
+    # Load the tests from the dynamically created module
+    suite = unittest.defaultTestLoader.loadTestsFromModule(test_module)
+
+    # Run the tests
+    result = runner.run(suite)
+
+    # Parse the results
+    # NOTE: Use result.failed in local development, if you want to see the failed tests or result.passed is empty
+    passed_tests = [get_test_code(test, unit_test_code) for test in result.passed]
+    failed_tests = [get_test_code(test, unit_test_code) for test in result.failed]
+    
+    return passed_tests, failed_tests
 
 def configure_model(api_key: str):
     genai.configure(api_key=api_key)
