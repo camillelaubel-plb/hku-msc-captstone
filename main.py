@@ -124,7 +124,7 @@ def ask_ai():
             },
             "metrics": {
                 "execution_time": execution_time,
-                "coverage": coverage,
+                "coverage": 0,
                 "memory_usage": 0
             },
             "suggestions": []
@@ -148,8 +148,8 @@ def extract_function_name(code):
 
 def test_main_function(string_code, data):
     start_time = time.time()
-    end_time = time.time()
     result = run_external_code(string_code, data)
+    end_time = time.time()
     execution_time = end_time - start_time
 
     output = {}
