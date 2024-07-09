@@ -4,11 +4,11 @@ import time
 # import memory_profiler
 import numpy as np
 import google.generativeai as genai
-import textwrap
-import ast
 import unittest
 import io
 import sys
+import coverage
+import json
 
 from flask import Flask, request, jsonify
 
@@ -95,36 +95,11 @@ def ask_ai():
         
         # Evaluate the generated unit tests
         passed_tests, failed_tests = run_tests(unit_test_response)
-
-
-        # eval(passed_tests)
-        print(" #### test5")
+        # coverage = run_tests_and_get_coverage(unit_test_response)
 
         # Generate metrics
-        ## Execution time
-        # start_time = time.time()
-        # result = my_function(data)
-        # end_time = time.time()
-
-        # execution_time = end_time - start_time
-
         ## Memory usage
         # memory_usage = memory_profiler.memory_usage()[0]
-
-        ## Code Coverage
-        # import coverage
-
-        # cov = coverage.Coverage()
-        # cov.start()
-
-        # # Your code here (including all functions you want to test)
-
-        # cov.stop()
-        # cov.report()  # Prints line and branch coverage statistics
-
-        # # Optionally, generate an HTML report
-        # cov.html_report(directory='coverage_report') 
-
 
 
         # Generate code quality metrics, such as cyclomatic complexity and maintainability index.
@@ -148,7 +123,9 @@ def ask_ai():
                 "failed_tests": failed_tests
             },
             "metrics": {
-                "execution_time": execution_time
+                "execution_time": execution_time,
+                "coverage": coverage,
+                "memory_usage": 0
             },
             "suggestions": []
         }
@@ -260,6 +237,31 @@ def run_tests(unit_test_code):
     failed_tests = [get_test_code(test, unit_test_code) for test in result.failed]
     
     return passed_tests, failed_tests
+
+def run_tests_and_get_coverage(unit_test_code):
+    cov = coverage.Coverage()
+    cov.start()
+
+    # Create a new module to hold the dynamically generated test cases
+    coverage_module = type(sys)('coverage_module')
+    exec(unit_test_code, coverage_module.__dict__)
+
+    cov.stop()
+    cov.save()
+
+    print('save')
+
+    cov.json_report(outfile='coverage.json')
+
+    coverage_json = 'No data was collected'
+
+    print('coverage_json')
+    if os.path.exists('coverage.json'):
+        print('exists')
+        with open('coverage.json', 'r') as f:
+            coverage_json =json.dumps(json.load(f), indent=2)
+
+    return coverage_json
 
 def configure_model(api_key: str):
     genai.configure(api_key=api_key)
