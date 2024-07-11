@@ -14,6 +14,9 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
+# Satisfy the import for the code execution
+np.abs(1)
+
 @app.route("/ask-ai", methods=["POST"])
 def ask_ai():
     try:
@@ -27,14 +30,14 @@ def ask_ai():
         result = data.get("result", {})
         expected_output = result.get("expectedOutput")
 
-        # https://platform.openai.com/docs/guides/prompt-engineering/tactic-use-code-execution-to-perform-more-accurate-calculations-or-call-external-apis
-        python_code = f"```python\n{code}\n```"
-
+        if not api_key or not code or not input_type or not boundary or not expected_output:
+            raise ValueError("Missing required fields in the input.")
+        
         model = configure_model(api_key)
         chat = model.start_chat(history=[])
 
-        if not api_key or not code or not input_type or not boundary or not expected_output:
-            raise ValueError("Missing required fields in the input.")
+        # https://platform.openai.com/docs/guides/prompt-engineering/tactic-use-code-execution-to-perform-more-accurate-calculations-or-call-external-apis
+        python_code = f"```python\n{code}\n```"
 
         # Validate Python syntax
         syntax_check = chat.send_message("Analyze the following Python code snippet and identify any potential syntax errors."
@@ -96,8 +99,7 @@ def ask_ai():
         unit_test_response = unit_test_response.text.partition("```python")[2].partition("```")[0]
         
         # Evaluate the generated unit tests
-        passed_tests, failed_tests = run_tests(unit_test_response)
-        # coverage = run_tests_and_get_coverage(unit_test_response)
+        passed_tests, failed_tests, coverage = run_tests(unit_test_response)
 
         # Generate suggestions
         ## Evaluate the code for performance bottlenecks and suggest optimizations.
@@ -113,7 +115,7 @@ def ask_ai():
             },
             "metrics": {
                 "execution_time": execution_time,
-                "coverage": 0,
+                "coverage": coverage,
                 "memory_usage": memory_usage
             },
             "suggestions": []
@@ -219,40 +221,28 @@ def run_tests(unit_test_code):
     # Load the tests from the dynamically created module
     suite = unittest.defaultTestLoader.loadTestsFromModule(test_module)
 
-    # Run the tests
-    result = runner.run(suite)
-
-    # Parse the results
-    # NOTE: Use result.failed in local development, if you want to see the failed tests or result.passed is empty
-    passed_tests = [get_test_code(test, unit_test_code) for test in result.passed]
-    failed_tests = [get_test_code(test, unit_test_code) for test in result.failed]
-    
-    return passed_tests, failed_tests
-
-def run_tests_and_get_coverage(unit_test_code):
+    # Start coverage analysis
     cov = coverage.Coverage()
     cov.start()
 
-    # Create a new module to hold the dynamically generated test cases
-    coverage_module = type(sys)('coverage_module')
-    exec(unit_test_code, coverage_module.__dict__)
+    # Run the tests
+    result = runner.run(suite)
 
     cov.stop()
-    cov.save()
 
-    print('save')
-
-    cov.json_report(outfile='coverage.json')
+    cov.json_report(outfile='coverage.json', pretty_print=True)
 
     coverage_json = 'No data was collected'
 
-    print('coverage_json')
     if os.path.exists('coverage.json'):
-        print('exists')
         with open('coverage.json', 'r') as f:
             coverage_json =json.dumps(json.load(f), indent=2)
 
-    return coverage_json
+    # Parse the results
+    passed_tests = [get_test_code(test, unit_test_code) for test in result.passed]
+    failed_tests = [get_test_code(test, unit_test_code) for test in result.failed]
+    
+    return passed_tests, failed_tests, coverage_json
 
 def configure_model(api_key: str):
     genai.configure(api_key=api_key)
