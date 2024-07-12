@@ -98,6 +98,7 @@ def ask_ai():
             f"Generate 5 correct and ready-to-run Python unit tests following the unittest framework for the provided code, without comments and descriptions:\n{python_code}\n"
             f"Make sure the generated test use the same data types as the expected output."
             f"Include the unittest.main() command at the end of the unit test."
+            f"Always add the provided code in the created test file."
             f"Before each variation, I want you to think through if the expected output will match with actual output before you write out the unit test. Update the expected output if necessary."
         )
         
