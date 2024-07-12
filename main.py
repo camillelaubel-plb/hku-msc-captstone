@@ -1,7 +1,6 @@
 import os
 import re
 import time
-# import memory_profiler
 import numpy as np
 import google.generativeai as genai
 import unittest
@@ -10,6 +9,7 @@ import sys
 import coverage
 import json
 import importlib.util
+import tracemalloc
 
 from flask import Flask, request, jsonify
 
@@ -83,7 +83,7 @@ def ask_ai():
             )
 
             execution_time = output["execution_time"]
-            # memory_usage = output["memory_usage"]
+            memory_usage = output["memory_usage"]
 
             try:
                 validation_response = chat.send_message(validation_query)
@@ -151,15 +151,20 @@ def extract_function_name(code):
 
 def test_main_function(string_code, data):
     start_time = time.time()
-    # memory_usage = memory_profiler.memory_usage()[0]
+    tracemalloc.start()
+
     result = run_external_code(string_code, data)
+
     end_time = time.time()
+    memory_usage = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+
     execution_time = end_time - start_time
 
     output = {}
     output["results"] = result
     output["execution_time"] = execution_time
-    # output["memory_usage"] = memory_usage
+    output["memory_usage"] = memory_usage
     return output
 
     
