@@ -9,6 +9,7 @@ import io
 import sys
 import coverage
 import json
+import importlib.util
 
 from flask import Flask, request, jsonify
 
@@ -64,6 +65,8 @@ def ask_ai():
         except AttributeError:
             sample_data = []
 
+        print('sample_data', sample_data)
+
         # Validate the output
         validation_result = ""
         execution_time = 0
@@ -72,6 +75,8 @@ def ask_ai():
             output = test_main_function(code, sample_data)
             result = output["results"]
 
+            print('result', result)
+            
             validation_query = (
                 f"Check each of the results in the following list and determine if they match the expected output:\n{result}\n"
                 f"The desired output response is a text, describing if the output is as expected."
@@ -86,6 +91,8 @@ def ask_ai():
             except AttributeError:
                 validation_result = "Generated data validation failed."
 
+        print('validation_result', validation_result)
+
         # Generate unit tests
         unit_test_query = (
             f"Generate 5 correct and ready-to-run Python unit tests following the unittest framework for the provided code, without comments and descriptions:\n{python_code}\n"
@@ -97,9 +104,12 @@ def ask_ai():
         unit_test_response = chat.send_message(unit_test_query)
 
         unit_test_response = unit_test_response.text.partition("```python")[2].partition("```")[0]
+
+        print('unit_test_response', unit_test_response)
         
         # Evaluate the generated unit tests
-        passed_tests, failed_tests, coverage = run_tests(unit_test_response)
+        passed_tests, failed_tests = run_tests(unit_test_response)
+        coverage = tests_coverage(unit_test_response)
 
         # Generate suggestions
         ## Evaluate the code for performance bottlenecks and suggest optimizations.
@@ -118,6 +128,7 @@ def ask_ai():
                 "coverage": coverage,
                 "memory_usage": memory_usage
             },
+            "test_suite": unit_test_response,
             "suggestions": []
         }
 
@@ -151,17 +162,20 @@ def test_main_function(string_code, data):
     return output
 
     
-def run_external_code(string_code, data):
+def run_external_code(string_code, data=None):
     function_name = extract_function_name(string_code)
-
     if function_name is None:
         raise ValueError("Missing function name. i.e. def my_function(data):")
     
     # Execute the function definition
     exec(string_code)
-        
+    
     # Call the function dynamically
-    result = eval(f'{function_name}({data})')
+    result = None
+    if data is None:
+        result = eval(f'{function_name}()')
+    else:
+        result = eval(f'{function_name}({data})')
 
     return result
 
@@ -179,11 +193,11 @@ class CustomTestResult(unittest.TextTestResult):
         super().addFailure(test, err)
         self.failed.append(test)
 
-def get_test_code(test_case, unit_test_code):
+def get_test_code(test_case, unit_test_response):
     # Extract the method name
     method_name = test_case._testMethodName
     # Find the method in the unit test code
-    lines = unit_test_code.strip().split('\n')
+    lines = unit_test_response.strip().split('\n')
     start_index = None
     end_index = None
 
@@ -209,10 +223,10 @@ def get_test_code(test_case, unit_test_code):
     
     return None
 
-def run_tests(unit_test_code):
+def run_tests(unit_test_response):
     # Create a new module to hold the dynamically generated test cases
     test_module = type(sys)('test_module')
-    exec(unit_test_code, test_module.__dict__)
+    exec(unit_test_response, test_module.__dict__)
 
     # Redirect result to capture the test output
     test_output = io.StringIO()
@@ -221,16 +235,41 @@ def run_tests(unit_test_code):
     # Load the tests from the dynamically created module
     suite = unittest.defaultTestLoader.loadTestsFromModule(test_module)
 
-    # Start coverage analysis
-    cov = coverage.Coverage()
-    cov.start()
-
     # Run the tests
     result = runner.run(suite)
 
-    cov.stop()
+    # Parse the results
+    passed_tests = [get_test_code(test, unit_test_response) for test in result.passed]
+    failed_tests = [get_test_code(test, unit_test_response) for test in result.failed]
+    
+    return passed_tests, failed_tests
 
-    cov.json_report(outfile='coverage.json', pretty_print=True)
+def tests_coverage(unit_test_response, source='coverage_module.py', module_name='coverage_module'):
+    coverage_module = type(sys)('coverage_module')
+    exec(unit_test_response, coverage_module.__dict__)
+
+    # IMPORTANT
+    # If you are running in the local environment, we cannot rewrite the file
+    # Since that will hot-reload flask and restart the server
+    # Therefore, the coverage test will be ran on whatever already exists in coverage_module.py
+    if not app.debug:
+        with open('coverage_module.py', 'w+') as f:
+            f.write(unit_test_response)
+    
+    spec = importlib.util.spec_from_file_location(module_name, source)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+
+    # Start coverage analysis
+    cov = coverage.Coverage(branch=True)
+    cov.start()
+
+    spec.loader.exec_module(module)
+
+    cov.stop()
+    cov.save()
+
+    cov.json_report(outfile='coverage.json')
 
     coverage_json = 'No data was collected'
 
@@ -238,11 +277,8 @@ def run_tests(unit_test_code):
         with open('coverage.json', 'r') as f:
             coverage_json =json.dumps(json.load(f), indent=2)
 
-    # Parse the results
-    passed_tests = [get_test_code(test, unit_test_code) for test in result.passed]
-    failed_tests = [get_test_code(test, unit_test_code) for test in result.failed]
-    
-    return passed_tests, failed_tests, coverage_json
+    return coverage_json
+
 
 def configure_model(api_key: str):
     genai.configure(api_key=api_key)
