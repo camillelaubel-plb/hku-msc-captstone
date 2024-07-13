@@ -52,10 +52,10 @@ def ask_ai():
             
         # Generate sample data
         sample_data_query = (
-            f"Generate diverse testing input data for a Python program that utilizes Flask's jsonify function."
+            f"Generate diverse testing input data for a Python program."
             f"Given the following Python code:\n{python_code}\n"
             f"Following the provided input format type: {input_type}. With the boundary condition being: {boundary}"
-            f"The desired output response is a Flask-compatible JSON list containing at least 20 diverse items."
+            f"The desired output response is a JSON list containing at least 20 diverse items."
         )
 
         sample_data_response = chat.send_message(sample_data_query)
@@ -124,7 +124,7 @@ def ask_ai():
         )
         
         suggestions_response = chat.send_message(suggestions_query)
-        
+
         try:
             suggestions_response = suggestions_response.text.partition("```python")[2].partition("```")[0]
             suggestions = eval(suggestions_response)
@@ -156,13 +156,6 @@ def ask_ai():
     except Exception as e:
         return jsonify({"error": "An unexpected error occurred.", "details": str(e)}), 500
 
-def extract_function_name(code):
-    function_name_match = re.search(r'def\s+(\w+)\s*\(', code)
-    if function_name_match:
-        return function_name_match.group(1)
-    else:
-        return None
-
 def test_main_function(string_code, data):
     start_time = time.time()
     tracemalloc.start()
@@ -180,6 +173,13 @@ def test_main_function(string_code, data):
     output["execution_time"] = execution_time
     output["memory_usage"] = memory_usage
     return output
+
+def extract_function_name(code):
+    function_name_match = re.search(r'def\s+(\w+)\s*\(', code)
+    if function_name_match:
+        return function_name_match.group(1)
+    else:
+        return None
 
     
 def run_external_code(string_code, data=None):
