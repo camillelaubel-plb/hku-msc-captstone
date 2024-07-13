@@ -120,11 +120,11 @@ def ask_ai():
             f"2. Potential security vulnerabilities: Point out any security issues in the code that need to be addressed."
             f"3. Potential bugs: Highlight any possible bugs or logical errors in the code."
             f"4. General improvement of code style: Suggest improvements related to coding conventions, readability, and maintainability."
-            f"Provide the suggestions as a Python list of strings. Each suggestion should be a separate string in the list."
+            f"Provide the suggestions as a Python list of strings. Each section of suggestions should be a separate string in the list."
         )
         
         suggestions_response = chat.send_message(suggestions_query)
-
+        
         try:
             suggestions_response = suggestions_response.text.partition("```python")[2].partition("```")[0]
             suggestions = eval(suggestions_response)
