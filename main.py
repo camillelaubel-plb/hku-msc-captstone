@@ -58,8 +58,8 @@ def ask_ai():
             f"The desired output response is a Flask-compatible JSON list containing at least 20 diverse items."
         )
 
+        sample_data_response = chat.send_message(sample_data_query)
         try:
-            sample_data_response = chat.send_message(sample_data_query)
             partitioned_text = sample_data_response.text.partition("```json")[2].partition("```")[0]
             sample_data = eval(partitioned_text)
         except AttributeError:
@@ -113,9 +113,23 @@ def ask_ai():
         coverage = tests_coverage(unit_test_response)
 
         # Generate suggestions
-        ## Evaluate the code for performance bottlenecks and suggest optimizations.
-        ## Evaluate the code for potential security vulnerabilities and suggest improvements.
-        ## Evaluate the code for potential bugs and suggest fixes.
+        suggestions_query = (
+            f"Analyze this Python function:\n{python_code}\n"
+            f"Provide suggestions to improve it. The suggestions should cover the following aspects:"
+            f"1. Performance bottlenecks: Identify any parts of the code that could be optimized for better performance."
+            f"2. Potential security vulnerabilities: Point out any security issues in the code that need to be addressed."
+            f"3. Potential bugs: Highlight any possible bugs or logical errors in the code."
+            f"4. General improvement of code style: Suggest improvements related to coding conventions, readability, and maintainability."
+            f"Provide the suggestions as a Python list of strings. Each suggestion should be a separate string in the list."
+        )
+        
+        suggestions_response = chat.send_message(suggestions_query)
+
+        try:
+            suggestions_response = suggestions_response.text.partition("```python")[2].partition("```")[0]
+            suggestions = eval(suggestions_response)
+        except:
+            suggestions = []
 
         response = {
             "sample_data": sample_data,
@@ -130,7 +144,7 @@ def ask_ai():
                 "memory_usage": memory_usage
             },
             "test_suite": unit_test_response,
-            "suggestions": []
+            "suggestions": suggestions
         }
 
         return jsonify(response)
