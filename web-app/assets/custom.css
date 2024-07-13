@@ -1,0 +1,46 @@
+.app-container {
+    display: grid;
+    grid-template-columns: 16rem auto;
+    grid-template-rows: auto;
+    grid-template-areas: "sidebar content";
+    grid-gap: 1rem;
+}
+
+.area-sidebar {
+    padding: 2rem 1rem;
+    grid-area: sidebar;
+    position: sticky;
+    top: 0;
+    align-self: start;
+}
+
+.area-content {
+    padding: 2rem 1rem;
+    grid-area: content
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner .dash-header > div, .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner .dash-filter > div {
+    flex-direction: row-reverse;
+}
+
+@-webkit-keyframes blinking {
+  0%, 49% {
+    font-size: 22px;
+    background-color: #ffcc00;
+    border: 3px solid red;
+    color:red;
+  }
+  50%, 100% {
+    font-size: 22px;
+    background-color: red;
+    border: 3px solid red;
+    color:white;
+  }
+}
+
+.blink {
+  -webkit-animation: blinking 1s infinite;  /* Safari 4+ */
+  -moz-animation: blinking 1s infinite;  /* Fx 5+ */
+  -o-animation: blinking 1s infinite;  /* Opera 12+ */
+  animation: blinking 1s infinite;  /* IE 10+, Fx 29+ */
+}
