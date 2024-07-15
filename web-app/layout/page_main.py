@@ -1,5 +1,6 @@
 import logging
 import sys
+import time
 import traceback
 import dash_bootstrap_components as dbc
 from dash import Input, Output, callback, dash_table, dcc, html, ctx
@@ -13,7 +14,7 @@ _request_data = html.Div([
     html.Div([html.U('Boundary'), html.Br(), dcc.Input(id='boundary', type='text', name="Boundary", debounce=True, style={'width': '100%'})]), html.Br(),
     html.Div([html.U('Expected Output'), html.Br(), dcc.Input(id='expected_output', type='text', name="ExpectedOutput", debounce=True, style={'width': '100%'})]), html.Br(),
     html.Div([html.U('Code'), html.Br(), dcc.Textarea(id='code', style={'width': '100%', 'height': 300})]), html.Br(),
-    html.Div([dbc.Button("Submit", id='btn_submit', size="sm", n_clicks=0, color="secondary"), html.Div([html.Br(), html.I('(Submitting... Please wait.)', style={'color':'orange'})], id='div_loading')]), html.Br(),
+    html.Div([dbc.Button("Submit", id='btn_submit', size="sm", n_clicks=0, color="secondary"), html.Div([html.Br(), html.B('(Submitting... Please wait.)', style={'color':'orange'})], id='div_loading', style={"display": "none"})]), html.Br(),
 ])
 
 _error_msg = html.B('', id='error_msg', style={'color': 'red'})
@@ -69,14 +70,15 @@ _response_data = html.Div([
 ])
 
 _main_div = html.Div([
+    html.H2(html.B("Automated Unit Test Generation for Data-intensive Applications")), html.Br(),
+    html.Hr(), html.Br(),
+    html.H3(html.U("Request")), html.Br(),
     _request_data,
     html.Hr(), html.Br(),
-    html.H1(html.U("Result")), html.Br(),
+    html.H3(html.U("Result")),
     _response_data,
 ])
 
-_interval = dcc.Interval(id='refresh_submit_btn_display_interval', interval=500, n_intervals=0)
-_is_submitting = False
 _btn_submit_count = 0
 @callback(
     Output("error_msg", 'children'),
@@ -92,17 +94,19 @@ _btn_submit_count = 0
     Input('input_type', 'value'),
     Input('boundary', 'value'),
     Input('expected_output', 'value'),
-    Input('btn_submit', 'n_clicks')
+    Input('btn_submit', 'n_clicks'),
+    running=[
+        (Output("btn_submit", "disabled"), True, False),
+        (Output("div_loading", "style"), {"display": "block"}, {"display": "none"}),
+    ]
 )
 def button_clicked(api_key, code, input_type, boundary, expected_output, btn_submit):
-    global _is_submitting
     global _btn_submit_count
     if btn_submit != _btn_submit_count:
         _is_submitting = True
         _btn_submit_count = btn_submit
         try:
             (is_success, json_rsp_data) = data_service.submit_request(api_key, code, input_type, boundary, expected_output)
-            _is_submitting = False
             if is_success:
                 validation_result = _parse_validation_result(json_rsp_data["validation_result"])
                 sample_data = _parse_sample_data(json_rsp_data["sample_data"])
@@ -121,21 +125,9 @@ def button_clicked(api_key, code, input_type, boundary, expected_output, btn_sub
                     error_msg = "[Error] " + str(json_rsp_data)
                 return error_msg, None, None, None, None, None, None, None
         except:
-            _is_submitting = False
             error_msg = str(sys.exc_info()[0]) + " " + str(sys.exc_info()[1])
             return error_msg, None, None, None, None, None, None, None
     return None, None, None, None, None, None, None, None
-@callback(
-    Output("btn_submit", 'disabled'),
-    Output("div_loading", 'style'),
-    Input('refresh_submit_btn_display_interval', 'n_intervals'),
-)
-def _on_time_interval(_n_intervals):
-    global _is_submitting
-    if _is_submitting:
-        return True, {"display": "block"}
-    else:
-        return False, {"display": "none"}
 
 def _parse_validation_result(data):
     result = []
@@ -215,4 +207,4 @@ def nth_repl(s, sub, repl, n):
         return s[:find] + repl + s[find+len(sub):]
     return s
 
-content = [_interval, _main_div]
+content = [_main_div]

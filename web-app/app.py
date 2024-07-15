@@ -12,6 +12,7 @@ content = html.Div(id="page-content", className="area-content")
 location = dcc.Location(id="url")
 
 dash_app = Dash(external_stylesheets=[dbc.themes.MATERIA], assets_folder=get_full_path('assets'))
+dash_app.title = "Automated Unit Test Generation for Data-intensive Applications"
 dash_app.layout = html.Div([
     location,
     content,
