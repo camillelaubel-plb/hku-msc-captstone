@@ -31,7 +31,7 @@ Pick Region 2: asia-east1
 ## Sample JSON Input to the API
 ```JSON
 {
-    "apiKey": "AIzaSyC7eQ7Tt4_f4XYx6CShYf6Bsy0iBcNmwsY",
+    "apiKey": "AIzaSyDbsRqw8z3CKFJ-g-uiiPiHfBCevbqPayg",
     "code": "def analyze_student_grades(students):\n    # Calculate average grades for each student\n    for student in students:\n        student['average'] = np.mean(student['grades'])\n    # Find the highest and lowest average grades\n    highest_avg = max(students, key=lambda x: x['average'])['average']\n    lowest_avg = min(students, key=lambda x: x['average'])['average']\n    # Normalize the grades\n    for student in students:\n        student['normalized_grades'] = [(grade - lowest_avg) / (highest_avg - lowest_avg) for grade in student['grades']]\n    # Prepare the summary\n    summary = {'students': students, 'highest_average': highest_avg, 'lowest_average': lowest_avg,}\n    return summary",
     "data": {
         "inputType": "{'name': 'Alice', 'grades': [88, 76, 92, 85]}",

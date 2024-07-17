@@ -55,7 +55,7 @@ def ask_ai():
             f"Generate diverse testing input data for a Python program."
             f"Given the following Python code:\n{python_code}\n"
             f"Following the provided input format type: {input_type}. With the boundary condition being: {boundary}"
-            f"The desired output response is a JSON list containing at least 20 diverse items."
+            f"The desired output response is a JSON list containing at least 20 diverse items only to be used as input."
         )
 
         sample_data_response = chat.send_message(sample_data_query)
@@ -72,7 +72,11 @@ def ask_ai():
         execution_time = 0
         memory_usage = 0
         if (len(sample_data) > 0):
-            output = test_main_function(code, sample_data)
+            sample_data_to_use = sample_data
+            if any(isinstance(el, list) for el in sample_data_to_use):
+                sample_data_to_use = sample_data_to_use[0]
+
+            output = test_main_function(code, sample_data_to_use)
             result = output["results"]
 
             print('result', result)
